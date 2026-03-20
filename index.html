@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Perda de Peso — Tirzepatida</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --red:       #C8102E;
+  --red-dk:    #9e0c24;
+  --purple-dk: #4f46e5;
+  --grad-start:#C8102E;
+  --grad-end:  #7a0619;
+  --ink:   #1a1a2e;
+  --mid:   #4a4a6a;
+  --muted: #9ca3af;
+  --surface: #ffffff;
+  --bg:    #f6f7fb;
+  --border:#e2e4ef;
+  --shadow: 0 2px 16px rgba(200,16,46,.07);
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+
+.hero {
+  background: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-end) 100%);
+  padding: 32px 48px 28px; color: #fff;
+}
+.hero-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: clamp(1.45rem, 2.8vw, 2rem); font-weight: 800;
+  letter-spacing: -.01em; display: flex; align-items: center; gap: 12px; margin-bottom: 6px;
+}
+.hero-sub { font-size: .88rem; font-weight: 400; color: rgba(255,255,255,.76); }
+
+.main { max-width: 1140px; margin: 0 auto; padding: 28px 24px 60px; }
+.grid-2 { display:grid; grid-template-columns:320px 1fr; gap:22px; align-items:start; }
+@media(max-width:860px){ .grid-2{ grid-template-columns:1fr; } }
+
+.card { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); border:1px solid var(--border); overflow:hidden; margin-bottom:20px; }
+.card:last-child { margin-bottom:0; }
+.card-head { padding:16px 22px 13px; border-bottom:1px solid var(--border); font-family:'Plus Jakarta Sans',sans-serif; font-size:.92rem; font-weight:700; color:var(--ink); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.card-head-left { display:flex; align-items:center; gap:8px; }
+.card-body { padding: 22px; }
+
+/* FORM */
+.form-group { margin-bottom:15px; }
+label { display:block; font-size:.75rem; font-weight:600; color:var(--mid); margin-bottom:5px; letter-spacing:.04em; text-transform:uppercase; }
+input[type=number], input[type=date], select { width:100%; height:40px; border:1.5px solid var(--border); border-radius:var(--radius-sm); padding:0 11px; font-family:'DM Sans',sans-serif; font-size:.9rem; color:var(--ink); background:#fff; transition:border-color .18s, box-shadow .18s; -webkit-appearance:none; appearance:none; }
+input:focus, select:focus { outline:none; border-color:var(--red); box-shadow:0 0 0 3px rgba(200,16,46,.1); }
+.select-wrap { position:relative; }
+.select-wrap::after { content:'▾'; position:absolute; right:11px; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none; font-size:.75rem; }
+.form-hint { font-size:.7rem; color:var(--muted); margin-top:3px; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+
+/* SECTION DIVIDER inside form */
+.form-section-title { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--red); margin:18px 0 12px; padding-bottom:6px; border-bottom:1.5px solid var(--red-lt, #f7e6e9); display:flex; align-items:center; gap:6px; }
+
+.btn-calc { width:100%; height:46px; background:linear-gradient(135deg, var(--grad-start) 0%, var(--grad-end) 100%); color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Plus Jakarta Sans',sans-serif; font-size:.92rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:opacity .18s, transform .1s; box-shadow:0 4px 14px rgba(200,16,46,.3); margin-top:6px; }
+.btn-calc:hover { opacity:.91; }
+.btn-calc:active { transform:scale(.98); }
+
+/* PDF button */
+.btn-pdf { height:36px; padding:0 16px; background:#fff; color:var(--red); border:1.5px solid var(--red); border-radius:var(--radius-sm); font-family:'Plus Jakarta Sans',sans-serif; font-size:.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; transition:.18s; white-space:nowrap; }
+.btn-pdf:hover { background:var(--red); color:#fff; }
+
+/* EMPTY */
+.empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:250px; color:var(--muted); text-align:center; gap:12px; }
+.empty-state svg { opacity:.2; width:50px; height:50px; }
+.empty-state p { font-size:.86rem; max-width:210px; line-height:1.5; }
+
+/* SUMMARY CARDS */
+.summary-row { display:grid; grid-template-columns:repeat(4,1fr); gap:11px; margin-bottom:18px; }
+.summary-row.has-actual { grid-template-columns:1.35fr 1fr 0.9fr 0.9fr 0.95fr 0.95fr; }
+@media(max-width:900px){ .summary-row.has-actual{ grid-template-columns:repeat(3,1fr); } }
+@media(max-width:620px){ .summary-row{ grid-template-columns:1fr 1fr !important; } }
+.stat-card { background:var(--bg); border-radius:var(--radius-sm); padding:13px 14px; border:1px solid var(--border); min-width:0; }
+.stat-card.accent { background:linear-gradient(135deg, var(--grad-start) 0%, var(--grad-end) 100%); border-color:transparent; }
+.stat-card.actual { border:2px solid #4f46e5; background:#f5f3ff; }
+.stat-label { font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stat-card.accent .stat-label { color:rgba(255,255,255,.72); }
+.stat-card.actual .stat-label { color:#4f46e5; }
+.stat-value { font-family:'Plus Jakarta Sans',sans-serif; font-size:1.55rem; font-weight:800; color:var(--ink); line-height:1; }
+.stat-card.accent .stat-value { color:#fff; }
+.stat-card.actual .stat-value { color:#4338ca; font-size:1.55rem; }
+.stat-sub { font-size:.65rem; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stat-card.accent .stat-sub { color:rgba(255,255,255,.65); }
+.stat-card.actual .stat-sub { color:#6d28d9; }
+
+/* PATIENT TAG strip */
+.patient-tag-strip { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; overflow:visible; padding-bottom:2px; }
+.ptag { display:inline-flex; align-items:center; gap:4px; border-radius:20px; padding:4px 11px; font-size:.70rem; font-weight:600; white-space:nowrap; line-height:1.3; }
+.ptag.date  { background:#f0f4ff; border:1px solid #bfdbfe; color:#1d4ed8; }
+.ptag.days  { background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; }
+.ptag.below { background:#fff1f2; border:1px solid #fecdd3; color:#C8102E; }
+.ptag.on    { background:#f0fdf4; border:1px solid #86efac; color:#15803d; }
+.ptag.above { background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; }
+
+/* PERFORMANCE TAG */
+
+
+/* CHART TABS */
+.chart-tabs-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.chart-tabs { display:flex; gap:7px; }
+.atag { display:inline-flex; align-items:center; gap:4px; border-radius:20px; padding:4px 12px; font-size:.72rem; font-weight:700; white-space:nowrap; }
+.atag.twl-tag  { background:#ede9fe; border:1.5px solid #7c3aed; color:#5b21b6; }
+.atag.wt-tag   { background:#e0f2fe; border:1.5px solid #0284c7; color:#0369a1; }
+.chart-tab { font-family:'DM Sans',sans-serif; font-size:.76rem; font-weight:500; padding:5px 14px; border-radius:20px; border:1.5px solid var(--border); background:transparent; color:var(--mid); cursor:pointer; transition:.18s; }
+.chart-tab.active { background:linear-gradient(135deg, var(--grad-start), var(--grad-end)); color:#fff; border-color:transparent; }
+.chart-wrap { position:relative; height:340px; margin-bottom:6px; }
+
+/* TABLE */
+.tbl-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:.84rem; }
+thead tr { background:#9e0c24; }
+th { text-align:left; padding:12px 16px; font-family:'Plus Jakarta Sans',sans-serif; font-size:.76rem; font-weight:700; color:#fff; white-space:nowrap; }
+td { padding:11px 16px; border-bottom:1px solid var(--border); color:var(--ink); }
+tr:last-child td { border-bottom:none; }
+tbody tr:nth-child(even) td { background:#fafbff; }
+tr:hover td { background:#f0f0f8; }
+td:first-child { font-weight:700; color:var(--ink); }
+.td-loss { font-weight:600; color:#4f46e5; }
+.td-iqr { color:#b0b3c6; }
+tr.actual-row td { background:#fff8f0 !important; }
+tr.actual-row td:first-child { color:var(--red); }
+
+/* DISCLAIMER */
+.disclaimer { background:#fffbeb; border:1.5px solid #fbbf24; border-radius:var(--radius-sm); padding:12px 16px; font-size:.74rem; color:#78350f; line-height:1.55; margin-top:0; display:flex; gap:8px; align-items:flex-start; }
+
+/* FADE */
+.fade-in { animation:fadeIn .35s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+/* PDF export area */
+#pdfArea { background:#fff; }
+
+footer { text-align:center; padding:18px; font-size:.7rem; color:var(--muted); border-top:1px solid var(--border); background:var(--surface); }
+
+/* Print / PDF overrides */
+@media print {
+  .btn-pdf, .btn-calc, .chart-tabs, footer, .hero { display:none !important; }
+  .main { padding:0 !important; }
+  .grid-2 { grid-template-columns:1fr !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-title">🏥 Calculadora de Predição de Perda de Peso — Tirzepatida</div>
+  <div class="hero-sub">SURMOUNT-1 · SURMOUNT-2 &nbsp;|&nbsp; Sem diabetes · Pré-diabetes · DM2 &nbsp;|&nbsp; Trajetória de 72 Semanas com Intervalo Interquartil (IIQ)</div>
+</div>
+
+<div class="main">
+  <div class="grid-2">
+
+    <!-- FORMULÁRIO -->
+    <div>
+      <div class="card">
+        <div class="card-head"><span class="card-head-left">👤 Dados do Paciente</span></div>
+        <div class="card-body">
+
+          <div class="form-section-title">📋 Dados Clínicos Basais</div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="weight">Peso inicial (kg) *</label>
+              <input type="number" id="weight" min="40" max="300" step="0.1" placeholder="ex: 110">
+            </div>
+            <div class="form-group">
+              <label for="height">Altura (cm) *</label>
+              <input type="number" id="height" min="120" max="250" step="0.1" placeholder="ex: 168">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="age">Idade (anos) *</label>
+            <input type="number" id="age" min="18" max="80" placeholder="ex: 44">
+            <div class="form-hint">Somente adultos (≥ 18 anos)</div>
+          </div>
+          <div class="form-group">
+            <label for="sex">Sexo biológico *</label>
+            <div class="select-wrap">
+              <select id="sex">
+                <option value="">Selecione...</option>
+                <option value="Female">Feminino</option>
+                <option value="Male">Masculino</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="dose">Dose de Tirzepatida *</label>
+            <div class="select-wrap">
+              <select id="dose">
+                <option value="">Selecione a dose...</option>
+                <option value="5">5 mg (dose baixa)</option>
+                <option value="10">10 mg (dose média)</option>
+                <option value="15">15 mg (dose alta)</option>
+              </select>
+            </div>
+            <div class="form-hint" id="doseHint"></div>
+          </div>
+          <div class="form-group">
+            <label for="glycemic">Status glicêmico *</label>
+            <div class="select-wrap">
+              <select id="glycemic" onchange="updateGlycemicHint()">
+                <option value="">Selecione...</option>
+                <option value="N">Sem diabetes</option>
+                <option value="PRE">Pré-diabetes</option>
+                <option value="DM2">Diabetes tipo 2</option>
+              </select>
+            </div>
+            <div class="form-hint" id="glycemicHint">Selecione o status glicêmico basal do paciente</div>
+          </div>
+
+          <div class="form-section-title">📅 Datas da Consulta</div>
+
+          <div class="form-group">
+            <label for="dateStart">1ª Consulta *</label>
+            <input type="date" id="dateStart">
+          </div>
+          <div class="form-group">
+            <label for="dateCurrent">Consulta Atual</label>
+            <input type="date" id="dateCurrent">
+            <div class="form-hint">Opcional — para marcar progresso na curva</div>
+          </div>
+
+          <div class="form-section-title">⚖️ Peso na Consulta Atual</div>
+          <div class="form-group">
+            <label for="weightCurrent">Peso atual (kg)</label>
+            <input type="number" id="weightCurrent" min="30" max="300" step="0.1" placeholder="Deixe em branco se 1ª consulta">
+            <div class="form-hint">Opcional — compara com a curva prevista</div>
+          </div>
+
+          <button class="btn-calc" onclick="calculate()">📊 Calcular Predição</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTADOS -->
+    <div id="resultsCol">
+      <div class="card" id="pdfArea">
+        <div class="card-head">
+          <span class="card-head-left">📈 Resultados da Predição</span>
+          <button class="btn-pdf" id="btnPdf" onclick="exportPDF()" style="display:none">
+            ⬇️ Exportar PDF
+          </button>
+        </div>
+        <div class="card-body">
+          <div id="emptyState" class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-7"/>
+            </svg>
+            <p>Preencha os dados do paciente e clique em <strong>Calcular Predição</strong></p>
+          </div>
+          <div id="resultContent" style="display:none">
+            <!-- Tags do paciente -->
+            <div class="patient-tag-strip" id="patientTags"></div>
+            <!-- Summary cards -->
+            <div class="summary-row" id="summaryCards"></div>
+            <!-- Chart -->
+            <div class="chart-tabs-row">
+              <div class="chart-tabs">
+                <button class="chart-tab active" onclick="switchChart('weight',this)">📉 Peso (kg)</button>
+                <button class="chart-tab" onclick="switchChart('twl',this)">📊 Perda de Peso (%)</button>
+              </div>
+              <div id="actualTags" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;"></div>
+            </div>
+            <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="tableCard" style="display:none">
+        <div class="card-head"><span class="card-head-left">📋 Predições Detalhadas</span></div>
+        <div class="card-body" style="padding:0">
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Semana</th>
+                  <th>Peso previsto (kg)</th>
+                  <th>IMC (kg/m²)</th>
+                  <th>Perda prevista (%)</th>
+                  <th>Faixa IIQ (kg)</th>
+
+                </tr>
+              </thead>
+              <tbody id="predTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="disclaimer" id="disclaimer" style="display:none">
+        <span>⚠️</span>
+        <span><strong>Aviso importante:</strong> Esta ferramenta tem finalidade de suporte educacional. As predições são baseadas em dados de ensaios fase 3: <strong>Sem diabetes</strong> — SURMOUNT-1 (Jastreboff et al., NEJM 2022); <strong>Pré-diabetes</strong> — SURMOUNT-1 subgrupo (Jastreboff et al., NEJM 2024); <strong>DM2</strong> — SURMOUNT-2 (Garvey et al., Lancet 2023). Não substituem a <strong>sua</strong> avaliação médica individualizada. IIQ = Intervalo Interquartil (P25–P75). Uso exclusivo para profissionais da saúde.</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  SURMOUNT-1 (NEJM 2022) · SURMOUNT-1 pré-DM (NEJM 2024) · SURMOUNT-2 (Lancet 2023) · Tirzepatida — controle de peso · Uso exclusivo para profissionais de saúde
+</footer>
+
+<script>
+const TWL_FINAL = {
+  N:   { 5: 16.0, 10: 20.8, 15: 22.2 },
+  PRE: { 5: 15.1, 10: 20.0, 15: 21.1 },
+  DM2: { 5: 10.3, 10: 13.4, 15: 15.7 }  // 10mg e 15mg: SURMOUNT-2; 5mg: estimativa (SURMOUNT-1 × ratio DM2/N)
+};
+
+const IQR_W72 = {
+  N:   { 5:{q1:8.0,q3:21.7}, 10:{q1:11.4,q3:26.2}, 15:{q1:13.3,q3:27.3} },
+  PRE: { 5:{q1:7.5,q3:20.5}, 10:{q1:10.8,q3:25.0}, 15:{q1:12.5,q3:26.0} },
+  DM2: { 5:{q1:5.0,q3:17.0}, 10:{q1:6.5,q3:19.5}, 15:{q1:8.0,q3:21.0} }
+};
+
+const LOGISTIC_PARAMS = {
+  N:   { mid: 25, rate: 0.08 },
+  PRE: { mid: 25, rate: 0.08 },
+  DM2: { mid: 28, rate: 0.07 }
+};
+
+const SEX_FACTOR = { Female: 1.08, Male: 0.93 };
+const WEEKS       = [0, 4, 8, 12, 20, 24, 36, 48, 60, 72];
+const TABLE_WEEKS = [0, 4, 8, 12, 24, 36, 52, 72];
+
+let chartInstance = null;
+let lastState     = null;
+let chartMode     = 'weight';
+
+function logistic(week, pop) {
+  const p = LOGISTIC_PARAMS[pop] || LOGISTIC_PARAMS.N;
+  return 1 / (1 + Math.exp(-p.rate * (week - p.mid)));
+}
+
+function logisticW72(pop) {
+  return logistic(72, pop);
+}
+
+function calcTWLFinal(dose, age, bmi, sex, pop) {
+  const base = TWL_FINAL[pop] && TWL_FINAL[pop][dose];
+  if (base === null || base === undefined) return null;
+  let twl = base;
+  if (pop !== 'DM2') {
+    twl *= SEX_FACTOR[sex] || 1.0;
+    if (age > 51) twl *= 0.95;
+  } else {
+    twl *= (SEX_FACTOR[sex] || 1.0) * 0.5 + 0.5;
+    if (age > 60) twl *= 0.97;
+  }
+  const bmiRef = pop === 'DM2' ? 36.1 : 37.5;
+  twl = twl * (1 + (bmi - bmiRef) * 0.004);
+  const cap   = pop === 'DM2' ? 22 : 30;
+  const floor = pop === 'DM2' ? 5  : 8;
+  return Math.max(floor, Math.min(twl, cap));
+}
+
+function interpolateTWL(twlFinal, weekFrac, pop) {
+  const logi   = weekFrac <= 0 ? 0 : logistic(weekFrac, pop);
+  const logi72 = logisticW72(pop);
+  return twlFinal * (logi / logi72);
+}
+
+function daysToWeeks(days) { return days / 7; }
+
+function fmtDate(str) {
+  if (!str) return '';
+  const [y,m,d] = str.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function updateGlycemicHint() {
+  const g = document.getElementById('glycemic').value;
+  const hints = {
+    N:   'SURMOUNT-1 · Jastreboff et al., NEJM 2022 · n=2.539',
+    PRE: 'SURMOUNT-1 subgrupo pré-diabetes · Jastreboff et al., NEJM 2024 · n=1.032',
+    DM2: 'SURMOUNT-2 · Garvey et al., Lancet 2023 · n=938 · Desfecho primário: 10mg e 15mg. 5mg = estimativa extrapolada'
+  };
+  const el = document.getElementById('glycemicHint');
+  if (el) el.textContent = hints[g] || 'Selecione o status glicêmico basal do paciente';
+  const doseEl   = document.getElementById('dose');
+  const doseHint = document.getElementById('doseHint');
+  if (doseEl) {
+    Array.from(doseEl.options).forEach(opt => {
+      if (opt.value === '5') {
+        opt.disabled    = false;
+        opt.textContent = '5 mg (dose baixa)';
+      }
+    });
+    if (doseHint) {
+      doseHint.textContent = g === 'DM2'
+        ? '⚠️ Para DM2: 10mg e 15mg têm dados do SURMOUNT-2. 5mg = estimativa extrapolada do SURMOUNT-1 × fator DM2'
+        : '';
+      doseHint.style.color = (g === 'DM2') ? '#b45309' : '';
+    }
+  }
+}
+
+function calcPercentile(actualTWL, medianTWL, q1, q3) {
+  const iqr   = q3 - q1;
+  const sigma = iqr / 1.35;
+  if (sigma <= 0) return 50;
+  const z   = (actualTWL - medianTWL) / sigma;
+  const t   = 1 / (1 + 0.2316419 * Math.abs(z));
+  const poly = t*(0.319381530 + t*(-0.356563782 + t*(1.781477937 + t*(-1.821255978 + t*1.330274429))));
+  const phi  = 1 - (1/Math.sqrt(2*Math.PI)) * Math.exp(-0.5*z*z) * poly;
+  return Math.round(z >= 0 ? phi*100 : (1-phi)*100);
+}
+
+function calculate() {
+  const weight        = parseFloat(document.getElementById('weight').value);
+  const height        = parseFloat(document.getElementById('height').value);
+  const age           = parseFloat(document.getElementById('age').value);
+  const sex           = document.getElementById('sex').value;
+  const dose          = parseInt(document.getElementById('dose').value);
+  const glycemic      = document.getElementById('glycemic').value;
+  const dateStart     = document.getElementById('dateStart').value;
+  const dateCurrent   = document.getElementById('dateCurrent').value;
+  const weightCurrent = parseFloat(document.getElementById('weightCurrent').value);
+
+  const miss = [];
+  if (!weight||weight<40||weight>300)  miss.push('Peso inicial (40–300 kg)');
+  if (!height||height<120||height>250) miss.push('Altura (120–250 cm)');
+  if (!age||age<18||age>80)            miss.push('Idade (18–80 anos)');
+  if (!sex)       miss.push('Sexo biológico');
+  if (!dose)      miss.push('Dose');
+  if (!glycemic)  miss.push('Status glicêmico');
+  if (!dateStart) miss.push('Data da 1ª consulta');
+  if (miss.length) { alert('Por favor, preencha corretamente:\n• ' + miss.join('\n• ')); return; }
+
+  // DM2 + 5mg: não avaliado como desfecho primário no SURMOUNT-2,
+  // mas o médico pode manter dose de 5mg por opção clínica.
+  // Nesse caso usamos os dados do SURMOUNT-1 (sem DM) escalados para DM2,
+  // com aviso exibido nos resultados.
+
+  const bmi      = weight / ((height / 100) ** 2);
+  const pop      = glycemic;                               // 'N' | 'PRE' | 'DM2'
+  const twlFinal = calcTWLFinal(dose, age, bmi, sex, pop);
+
+
+
+  const { q1: q1_72, q3: q3_72 } = IQR_W72[pop][dose];
+  const logi72 = logisticW72(pop);
+
+  const predictions = WEEKS.map(wk => {
+    const logi  = wk === 0 ? 0 : logistic(wk, pop);
+    const scale = logi / logi72;
+    const twlWk = twlFinal * scale;
+    const q1Wk  = q1_72   * scale;
+    const q3Wk  = q3_72   * scale;
+    return {
+      week: wk,
+      weight:      weight * (1 - twlWk / 100),
+      weightLower: weight * (1 - q3Wk  / 100),
+      weightUpper: weight * (1 - q1Wk  / 100),
+      bmi:         weight * (1 - twlWk / 100) / ((height / 100) ** 2),
+      twl: twlWk, twlQ1: q1Wk, twlQ3: q3Wk
+    };
+  });
+
+  let currentPoint = null;
+  let weeksElapsed = null;
+  if (dateCurrent && dateStart) {
+    const d1       = new Date(dateStart);
+    const d2       = new Date(dateCurrent);
+    const diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+    if (diffDays > 0) {
+      weeksElapsed = daysToWeeks(diffDays);
+      const logiC       = logistic(weeksElapsed, pop);
+      const scaleC      = logiC / logi72;
+      const twlExpected = twlFinal * scaleC;
+      const q1Expected  = q1_72   * scaleC;
+      const q3Expected  = q3_72   * scaleC;
+      const wExpected   = weight * (1 - twlExpected / 100);
+      const wLower      = weight * (1 - q3Expected  / 100);
+      const wUpper      = weight * (1 - q1Expected  / 100);
+
+      currentPoint = { weeksElapsed, diffDays, wExpected, wLower, wUpper,
+                       twlExpected, q1Expected, q3Expected };
+
+      if (!isNaN(weightCurrent) && weightCurrent > 0) {
+        const actualTWL      = (weight - weightCurrent) / weight * 100;
+        const pct            = calcPercentile(actualTWL, twlExpected, q1Expected, q3Expected);
+        const diffFromMedian = actualTWL - twlExpected;
+        const diffFromTarget = twlFinal  - actualTWL;
+        currentPoint.actualWeight    = weightCurrent;
+        currentPoint.actualTWL       = actualTWL;
+        currentPoint.percentile      = pct;
+        currentPoint.diffFromMedian  = diffFromMedian;
+        currentPoint.diffFromTarget  = diffFromTarget;
+      }
+    }
+  }
+
+  lastState = { predictions, weight, height, bmi, dose, glycemic, pop,
+                dateStart, dateCurrent, weightCurrent, weeksElapsed, currentPoint, twlFinal };
+  renderResults(lastState);
+}
+
+function renderResults(s) {
+  const { predictions, weight, bmi, dateStart, dateCurrent, currentPoint, twlFinal, pop } = s;
+  const final  = predictions[predictions.length - 1];
+  const lostKg = (weight - final.weight).toFixed(1);
+
+  const POP_LABEL  = { N:'Sem diabetes', PRE:'Pré-diabetes', DM2:'Diabetes tipo 2' };
+  const POP_SOURCE = { N:'SURMOUNT-1 · NEJM 2022', PRE:'SURMOUNT-1 pré-DM · NEJM 2024', DM2:'SURMOUNT-2 · Lancet 2023' };
+  const POP_COLOR  = { N:'#1d4ed8', PRE:'#d97706', DM2:'#9333ea' };
+
+  document.getElementById('emptyState').style.display = 'none';
+  const rc = document.getElementById('resultContent');
+  rc.style.display = 'block'; rc.classList.add('fade-in');
+  document.getElementById('tableCard').style.display = 'block';
+  document.getElementById('disclaimer').style.display = 'flex';
+  document.getElementById('btnPdf').style.display = 'flex';
+
+  // ── PATIENT TAGS ──────────────────────────────────────────────────
+  let tagsHtml = '';
+  // Tag de dias/semanas em tratamento
+  if (currentPoint) {
+    const wks = currentPoint.weeksElapsed.toFixed(1);
+    const days = currentPoint.diffDays;
+    tagsHtml += `<div class="ptag days">⏱ ${days} dias · ${wks} semanas de tratamento</div>`;
+  }
+  // Tag de população
+  const bc = POP_COLOR[pop] || '#1d4ed8';
+  tagsHtml += `<div class="ptag" style="background:${bc}18;border:1px solid ${bc}55;color:${bc}">🔬 ${POP_LABEL[pop] || pop}</div>`;
+
+  // Tag de performance (só quando há peso atual)
+  if (currentPoint && currentPoint.actualTWL !== undefined) {
+    const diff = currentPoint.diffFromMedian;
+    if (diff >= 1.5) {
+      tagsHtml += `<div class="ptag above">🟢 Acima da média do estudo (+${diff.toFixed(1)}%)</div>`;
+    } else if (diff <= -1.5) {
+      tagsHtml += `<div class="ptag below">🔴 Abaixo da média do estudo (${diff.toFixed(1)}%)</div>`;
+    } else {
+      tagsHtml += `<div class="ptag on">🔵 Na média do estudo (${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%)</div>`;
+    }
+  }
+  document.getElementById('patientTags').innerHTML = tagsHtml;
+
+  // ── SUMMARY CARDS ─────────────────────────────────────────────────
+  const srcLabel = POP_SOURCE[pop] || '';
+  const hasActual = currentPoint && currentPoint.actualTWL !== undefined;
+  const actTWL    = hasActual ? currentPoint.actualTWL : null;
+  const actWeight = hasActual ? currentPoint.actualWeight : null;
+  const actLostKg = hasActual ? (weight - actWeight).toFixed(1) : null;
+
+  // Always 4-column grid
+  const summaryEl = document.getElementById('summaryCards');
+  summaryEl.classList.remove('has-actual');
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="stat-card accent">
+      <div class="stat-label">Perda estimada · Sem. 72</div>
+      <div class="stat-value">−${final.twl.toFixed(1)}%</div>
+      <div class="stat-sub">−${lostKg} kg · ${srcLabel}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Peso previsto · Sem. 72</div>
+      <div class="stat-value">${final.weight.toFixed(1)}</div>
+      <div class="stat-sub">kg · média</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">IMC inicial</div>
+      <div class="stat-value">${bmi.toFixed(1)}</div>
+      <div class="stat-sub">kg/m² · basal</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">IMC previsto · Sem. 72</div>
+      <div class="stat-value">${final.bmi.toFixed(1)}</div>
+      <div class="stat-sub">kg/m² · média</div>
+    </div>`;
+
+  // Actual-data tags next to chart buttons
+  const actualTagsEl = document.getElementById('actualTags');
+  if (hasActual && actualTagsEl) {
+    const diff = currentPoint.diffFromMedian;
+    const diffStr = diff >= 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
+    actualTagsEl.innerHTML = `
+      <div class="atag twl-tag">📉 −${actTWL.toFixed(1)}% perda atual <span style="opacity:.7;font-weight:500">(${diffStr} vs média)</span></div>
+      <div class="atag wt-tag">⚖️ ${actWeight.toFixed(1)} kg <span style="opacity:.7;font-weight:500">(−${actLostKg} kg)</span></div>`;
+    actualTagsEl.style.display = 'flex';
+  } else if (actualTagsEl) {
+    actualTagsEl.style.display = 'none';
+  }
+
+  // ── TABELA — fases de titulação dinâmicas por dose ────────────────
+  const rows = predictions.filter(p => TABLE_WEEKS.includes(p.week));
+
+  // Titulação:
+  //   5mg  → titulação até semana 8  (início 2.5mg → 5mg), manutenção a partir da sem. 12
+  //   10mg → titulação até semana 16 (2.5→5→7.5→10mg), manutenção a partir da sem. 20
+  //          Como TABLE_WEEKS=[0,4,8,12,24,36,52,72], semanas 4,8,12 = titulação
+  //   15mg → titulação até semana 20 (2.5→5→7.5→10→12.5→15mg), sem. 4,8,12,24 = titulação
+  //          Na prática: semanas ≤ 20 = titulação; mas TABLE_WEEKS não tem sem.20
+  //          então: 4,8,12 = titulação; 24 = última semana de ajuste / início manutenção
+  const titulacaoAte = { 5: 8, 10: 16, 15: 20 };
+  const cutoff = titulacaoAte[lastState.dose] || 8;
+
+  function getPhase(week, dose) {
+    if (week === 0) return {label:'Baseline', bg:'#f3f4f6', color:'#6b7280'};
+    if (week <= cutoff) return {label:'Titulação', bg:'#fefce8', color:'#854d0e'};
+    if (week <= 36) return {label:'Manutenção', bg:'#f0fdf4', color:'#166534'};
+    if (week <= 52) return {label:'Manutenção', bg:'#f0fdf4', color:'#166534'};
+    return {label:'Longo Prazo', bg:'#dcfce7', color:'#14532d'};
+  }
+
+  document.getElementById('predTbody').innerHTML = rows.map(p => {
+    const weekLabel = p.week===0 ? 'Baseline' : `Semana ${p.week}`;
+    return `<tr>
+      <td>${weekLabel}</td>
+      <td>${p.weight.toFixed(1)}</td>
+      <td>${p.bmi.toFixed(1)}</td>
+      <td class="td-loss">${p.twl.toFixed(1)}%</td>
+      <td class="td-iqr">${p.weightLower.toFixed(1)} – ${p.weightUpper.toFixed(1)}</td>
+    </tr>`;
+  }).join('');
+
+  // ── GRÁFICO ────────────────────────────────────────────────────────
+  chartMode = 'weight';
+  document.querySelectorAll('.chart-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  renderChart(predictions, 'weight', currentPoint);
+}
+
+function renderChart(predictions, mode, currentPoint) {
+  const labels = predictions.map(p => p.week===0?'Baseline':`S${p.week}`);
+  let median, lower, upper, yLabel, suffix, lineCol, bandCol, dashCol;
+
+  if (mode === 'weight') {
+    median = predictions.map(p => +p.weight.toFixed(2));
+    upper  = predictions.map(p => +p.weightUpper.toFixed(2));
+    lower  = predictions.map(p => +p.weightLower.toFixed(2));
+    yLabel='Peso (kg)'; suffix=' kg';
+    lineCol='#C8102E'; bandCol='rgba(200,16,46,0.09)'; dashCol='#ff6b8a';
+  } else {
+    median = predictions.map(p => +p.twl.toFixed(2));
+    lower  = predictions.map(p => +p.twlQ1.toFixed(2));
+    upper  = predictions.map(p => +p.twlQ3.toFixed(2));
+    yLabel='Perda de Peso (%)'; suffix='%';
+    lineCol='#6d28d9'; bandCol='rgba(236,72,153,0.13)'; dashCol='#ec4899';
+  }
+
+  if (chartInstance) chartInstance.destroy();
+  const chartEl = document.getElementById('mainChart');
+  // High-DPI rendering for crisp PDF export
+  const dpr = window.devicePixelRatio || 1;
+  const ctx = chartEl.getContext('2d');
+
+  // Dataset do ponto atual (se existir)
+  const extraDatasets = [];
+  if (currentPoint) {
+    const wks = currentPoint.weeksElapsed;
+    const yVal = mode === 'weight'
+      ? (currentPoint.actualWeight !== undefined ? +currentPoint.actualWeight.toFixed(2) : +currentPoint.wExpected.toFixed(2))
+      : (currentPoint.actualTWL    !== undefined ? +currentPoint.actualTWL.toFixed(2)    : +currentPoint.twlExpected.toFixed(2));
+    const hasActual = currentPoint.actualWeight !== undefined;
+    const pointColor = hasActual
+      ? (currentPoint.diffFromMedian >= 1 ? '#16a34a' : currentPoint.diffFromMedian <= -1 ? '#ea580c' : '#2563eb')
+      : '#374151';
+    const labelPt = hasActual
+      ? `Consulta atual (${fmtDate(lastState.dateCurrent)})`
+      : `Esperado hoje (${fmtDate(lastState.dateCurrent)})`;
+
+    // Linha vertical tracejada do ponto atual
+    extraDatasets.push({
+      label: labelPt,
+      data: [{ x: wks, y: yVal }],
+      type: 'scatter',
+      backgroundColor: pointColor,
+      borderColor: pointColor,
+      pointRadius: 10,
+      pointHoverRadius: 12,
+      pointStyle: 'star',
+      order: 0
+    });
+  }
+
+  // Para Chart.js 4 com eixo X numérico para o ponto scatter,
+  // usamos um dataset de linha normal com NaN em todos exceto o ponto mais próximo
+  // Abordagem: annotation via anotação no plugin — mas sem plugin, vamos
+  // usar um ponto vermelho inserido na série mediana na posição interpolada
+
+  // Plugin: linhas tracejadas âmbar + labels nos eixos X e Y
+  const verticalLinePlugin = {
+    id: 'verticalMarker',
+    afterDraw(chart) {
+      if (!currentPoint) return;
+      const cp = currentPoint;
+      const wks = cp.weeksElapsed;
+      const WEEKS_ALL = [0,4,8,12,20,24,36,48,60,72];
+
+      // ── Posição X interpolada ────────────────────────────────────────
+      let idxLeft = 0;
+      for (let i = 0; i < WEEKS_ALL.length - 1; i++) {
+        if (WEEKS_ALL[i] <= wks && wks <= WEEKS_ALL[i+1]) { idxLeft = i; break; }
+      }
+      const idxRight = Math.min(idxLeft + 1, WEEKS_ALL.length - 1);
+      const wL = WEEKS_ALL[idxLeft], wR = WEEKS_ALL[idxRight];
+      const frac = wR > wL ? (wks - wL) / (wR - wL) : 0;
+
+      const xScale = chart.scales['x'];
+      const yScale = chart.scales['y'];
+      if (!xScale || !yScale) return;
+
+      const xPixelLeft  = xScale.getPixelForValue(idxLeft);
+      const xPixelRight = xScale.getPixelForValue(idxRight);
+      const xPixel = xPixelLeft + (xPixelRight - xPixelLeft) * frac;
+
+      // ── Valor Y ──────────────────────────────────────────────────────
+      const hasActual = cp.actualWeight !== undefined;
+      const yVal = mode === 'weight'
+        ? (hasActual ? cp.actualWeight : cp.wExpected)
+        : (hasActual ? cp.actualTWL    : cp.twlExpected);
+      const yPixel  = yScale.getPixelForValue(yVal);
+      const yBottom = yScale.bottom;
+      const yTop    = yScale.top;
+      const yAxisX  = yScale.left;
+
+      const c = chart.ctx;
+      const AMBER = '#f59e0b';
+
+      // ── 1. Linha tracejada VERTICAL: ponto → eixo X ──────────────────
+      c.save();
+      c.beginPath();
+      c.setLineDash([4, 4]);
+      c.strokeStyle = AMBER;
+      c.lineWidth = 1.5;
+      c.moveTo(xPixel, yPixel + 8);
+      c.lineTo(xPixel, yBottom);
+      c.stroke();
+      c.restore();
+
+      // Label X âmbar — posicionado no meio da área entre yBottom e xScale.bottom
+      // xScale.bottom inclui o espaço total dos ticks + título do eixo X.
+      // O meio dessa área é onde os ticks normais ficam visualmente.
+      // Colocamos ABAIXO dessa faixa: pegamos 75% do caminho até xScale.bottom.
+      const xScaleBottom = xScale.bottom;
+      const tickMidY = yBottom + (xScaleBottom - yBottom) * 0.45;
+      c.save();
+      c.setLineDash([]);
+      c.font = 'bold 11px "DM Sans", sans-serif';
+      c.fillStyle = AMBER;
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(`S${wks.toFixed(1)}`, xPixel, tickMidY);
+      c.restore();
+
+      // ── 2. Linha tracejada HORIZONTAL curta: eixo Y → ponto ──────────
+      c.save();
+      c.beginPath();
+      c.setLineDash([3, 3]);
+      c.strokeStyle = AMBER;
+      c.lineWidth = 1;
+      c.moveTo(yAxisX, yPixel);
+      c.lineTo(xPixel - 8, yPixel);
+      c.stroke();
+      c.restore();
+
+      // Label Y âmbar — alinhado aos ticks do eixo Y com fundo branco
+      const yLabelText = mode === 'weight'
+        ? `${yVal.toFixed(1)} kg`
+        : `${yVal.toFixed(1)}%`;
+
+      c.save();
+      c.beginPath();
+      c.rect(0, 0, chart.canvas.width, chart.canvas.height);
+      c.clip();
+      c.setLineDash([]);
+      c.font = 'bold 11px "DM Sans", sans-serif';
+      c.textAlign = 'right';
+      c.textBaseline = 'middle';
+      const tw = c.measureText(yLabelText).width;
+      // Alinha com os ticks: eles terminam em yAxisX com textAlign right
+      const lx = yAxisX - 4;
+      // Fundo branco generoso para cobrir completamente o tick original
+      c.fillStyle = '#ffffff';
+      c.fillRect(0, yPixel - 10, lx + 2, 20);
+      // Texto âmbar
+      c.fillStyle = AMBER;
+      c.fillText(yLabelText, lx, yPixel);
+      c.restore();
+    }
+  };
+
+  chartInstance = new Chart(ctx, {
+    plugins: [verticalLinePlugin],
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: mode==='weight'? 'IIQ superior (P75)' : 'IIQ superior P75 (%)',
+          data: upper,
+          fill: '+1',
+          borderColor: dashCol,
+          backgroundColor: bandCol,
+          borderWidth: 1.6,
+          borderDash: [6,4],
+          pointRadius: 0, pointHoverRadius: 4,
+          tension: .4, order: 3
+        },
+        {
+          label: mode==='weight'? 'IIQ inferior (P25)' : 'IIQ inferior P25 (%)',
+          data: lower,
+          fill: false,
+          borderColor: dashCol,
+          borderWidth: 1.6,
+          borderDash: [6,4],
+          pointRadius: 0, pointHoverRadius: 4,
+          tension: .4, order: 3
+        },
+        {
+          label: mode==='weight'? 'Peso previsto (kg)' : 'Perda de Peso (%)',
+          data: median,
+          fill: false,
+          borderColor: lineCol,
+          backgroundColor: lineCol,
+          borderWidth: 2.5,
+          pointRadius: 5, pointHoverRadius: 8,
+          pointBackgroundColor: lineCol,
+          pointBorderColor: '#fff', pointBorderWidth: 2,
+          tension: .4, order: 1
+        },
+        // Ponto real do paciente na posição EXATA (interpolada no eixo X)
+        ...(currentPoint ? (() => {
+          const hasActual = currentPoint.actualWeight !== undefined;
+          const wks = currentPoint.weeksElapsed;
+          const WEEKS_ALL = [0,4,8,12,20,24,36,48,60,72];
+          const yVal = mode === 'weight'
+            ? (hasActual ? currentPoint.actualWeight : currentPoint.wExpected)
+            : (hasActual ? currentPoint.actualTWL    : currentPoint.twlExpected);
+
+          // ── Interpolação linear da posição X entre os dois timepoints vizinhos ──
+          let idxLeft = 0, idxRight = WEEKS_ALL.length - 1;
+          for (let i = 0; i < WEEKS_ALL.length - 1; i++) {
+            if (WEEKS_ALL[i] <= wks && wks <= WEEKS_ALL[i+1]) {
+              idxLeft = i; idxRight = i + 1; break;
+            }
+          }
+          const wL = WEEKS_ALL[idxLeft], wR = WEEKS_ALL[idxRight];
+          // Fração entre os dois labels (0 = colado no esquerdo, 1 = colado no direito)
+          const frac = wR > wL ? (wks - wL) / (wR - wL) : 0;
+          // Posição X real no espaço do gráfico (índice fracionário)
+          const xPos = idxLeft + frac;
+
+          const markerColor = '#f59e0b';
+
+          // ── Dataset da linha vertical pontilhada (do ponto até o eixo X) ──
+          // Obtemos o yMin da escala depois do render via plugin customizado
+          // Usamos dois pontos: (xPos, yVal) e (xPos, yMin)
+          // Como não temos acesso ao yMin aqui, usamos um valor muito baixo
+          // e deixamos o clip do chart cortar naturalmente
+          const vertLineData = WEEKS_ALL.map((_, i) => null);
+          // Injetamos os dois extremos nos índices vizinhos com interpolação manual
+          // A linha vertical é desenhada via afterDraw plugin abaixo
+
+          return [
+            // Marcador âmbar na posição exata interpolada
+            {
+              label: 'Peso atual',
+              data: [{ x: xPos, y: +yVal.toFixed(2) }],
+              type: 'scatter',
+              fill: false,
+              borderColor: 'transparent',
+              backgroundColor: markerColor,
+              pointBackgroundColor: markerColor,
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2.5,
+              pointRadius: 6,
+              pointHoverRadius: 9,
+              pointStyle: 'circle',
+              order: 0,
+              xAxisID: 'xFrac'   // eixo X fracionário oculto
+            }
+          ];
+        })() : [])
+      ]
+    },
+    options: {
+      clip: false,
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode:'nearest', intersect:false, axis:'x' },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            usePointStyle: true, pointStyle: 'line',
+            font: { family:"'DM Sans',sans-serif", size:12 },
+            color: '#111827', padding: 18,
+            filter: item => !item.text.startsWith('IIQ'),
+            generateLabels: chart => {
+              const ds = chart.data.datasets;
+              const out = [];
+              // Mediana
+              out.push({ text: ds[2].label, strokeStyle:lineCol, fillStyle:lineCol, lineWidth:2.5, pointStyle:'line', hidden:false, datasetIndex:2, fontColor:'#111827' });
+              // Banda IIQ
+              out.push({ text:'Banda IIQ (P25–P75)', strokeStyle:dashCol, fillStyle:bandCol, lineWidth:1.6, lineDash:[6,4], pointStyle:'line', hidden:false, datasetIndex:0, fontColor:'#111827' });
+              // Ponto atual (se existe)
+              if (currentPoint) {
+                out.push({ text: 'Peso atual', strokeStyle:'#f59e0b', fillStyle:'#f59e0b', lineWidth:0, pointStyle:'circle', hidden:false, datasetIndex:3, fontColor:'#111827' });
+              }
+              return out;
+            }
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1a1a2e',
+          titleFont: { family:"'Plus Jakarta Sans',sans-serif", size:13, weight:'700' },
+          bodyFont:  { family:"'DM Sans',sans-serif", size:12 },
+          padding: 14,
+          callbacks: {
+            title: items => {
+              const hasMarker = items.some(i => i.datasetIndex === 3);
+              if (hasMarker && lastState && lastState.dateCurrent) {
+                return `📍 Você está aqui  ·  ${fmtDate(lastState.dateCurrent)}`;
+              }
+              return items[0].label;
+            },
+            label: item => {
+              // Quando o marcador âmbar está sendo hovado, só mostrar ele
+              // os outros valores corretos são injetados via afterBody
+              if (item.datasetIndex === 3) {
+                const cp = lastState && lastState.currentPoint;
+                if (cp) {
+                  const label = cp.actualWeight !== undefined ? 'Peso atual' : 'Peso esperado hoje';
+                  const val   = mode === 'weight'
+                    ? (cp.actualWeight !== undefined ? cp.actualWeight : cp.wExpected)
+                    : (cp.actualTWL    !== undefined ? cp.actualTWL    : cp.twlExpected);
+                  return `  ${label}: ${val.toFixed(1)}${suffix}`;
+                }
+                const v = item.parsed.y;
+                return `  Peso atual: ${v.toFixed(1)}${suffix}`;
+              }
+              const v = item.parsed.y;
+              if (v === null || v === undefined) return null;
+              return `  ${item.dataset.label}: ${v.toFixed(1)}${suffix}`;
+            },
+            afterBody: items => {
+              const hasMarker = items.some(i => i.datasetIndex === 3);
+              if (!hasMarker) return;
+              const cp = lastState && lastState.currentPoint;
+              if (!cp) return;
+              const wks = cp.weeksElapsed.toFixed(1);
+              const previsto = mode === 'weight' ? cp.wExpected : cp.twlExpected;
+              const sup      = mode === 'weight' ? cp.wUpper    : cp.q1Expected;
+              const inf      = mode === 'weight' ? cp.wLower    : cp.q3Expected;
+              return [
+                `  Peso previsto: ${previsto.toFixed(1)}${suffix}`,
+                `  IIQ superior (P75): ${sup.toFixed(1)}${suffix}`,
+                `  IIQ inferior (P25): ${inf.toFixed(1)}${suffix}`,
+                `  Semana: ${wks}`
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid:{color:'rgba(0,0,0,.04)'},
+          title:{display:true,text:'Semanas de Tratamento',font:{family:"'DM Sans'",size:11},color:'#9ca3af'},
+          ticks:{font:{family:"'DM Sans',sans-serif",size:11},color:'#9ca3af'}
+        },
+        // Eixo X fracionário oculto para posicionar o marcador na posição exata
+        xFrac: {
+          type: 'linear',
+          display: false,
+          min: 0,
+          max: 9,   // 10 pontos → índices 0–9
+          grid: { display: false }
+        },
+        y: {
+          grid:{color:'rgba(0,0,0,.04)'},
+          title:{display:true,text:yLabel,font:{family:"'DM Sans'",size:11},color:'#9ca3af'},
+          ticks:{font:{family:"'DM Sans',sans-serif",size:11},color:'#9ca3af',callback:v=>v.toFixed(0)+(mode==='weight'?' kg':'%')},
+          afterFit(axis) { axis.width = Math.max(axis.width, 68); }
+        }
+      }
+    }
+  });
+}
+
+function switchChart(mode, btn) {
+  document.querySelectorAll('.chart-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  chartMode = mode;
+  if (lastState) renderChart(lastState.predictions, mode, lastState.currentPoint);
+}
+
+// ── EXPORTAR PDF ─────────────────────────────────────────────────────────────
+async function exportPDF() {
+  const btn = document.getElementById('btnPdf');
+  const origText = btn.textContent;
+  btn.textContent = '⏳ Gerando PDF...';
+  btn.disabled = true;
+
+  await new Promise(r => setTimeout(r, 100));
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const dateStr = new Date().toLocaleDateString('pt-BR');
+
+    // A4 landscape: 297 × 210 mm  →  @ 3.7795 px/mm = 1122 × 794 px
+    const MM_PER_PX = 25.4 / 96;   // 1px = 0.2646mm @ 96dpi
+    const A4_W_MM = 297, A4_H_MM = 210;
+    const MARGIN_MM = 14;
+    const CONTENT_W_MM = A4_W_MM - MARGIN_MM * 2;  // 269mm
+    const CONTENT_H_MM = A4_H_MM - MARGIN_MM * 2;  // 182mm
+    // largura de captura equivalente a CONTENT_W_MM
+    const CAPTURE_W_PX = Math.round(CONTENT_W_MM / MM_PER_PX);  // ~1017px
+
+    // ── Captura o gráfico em alta resolução via html2canvas (4× scale) ────
+    const chartCanvas = document.getElementById('mainChart');
+    let chartImgSrc = null;
+
+    if (chartCanvas) {
+      // Capture the chart wrapper element (includes axis labels, legend)
+      const chartWrapper = chartCanvas.closest('.chart-wrap') || chartCanvas.parentElement;
+      try {
+        const chartCapture = await html2canvas(chartWrapper, {
+          scale: 4,                // 4× for exceptional sharpness
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          width: chartWrapper.offsetWidth,
+          windowWidth: chartWrapper.offsetWidth
+        });
+        chartImgSrc = chartCapture.toDataURL('image/png', 1.0);
+        // Use captured dimensions for proper aspect ratio
+        Object.defineProperty(chartCanvas, '_pdfW', { value: chartCapture.width,  configurable: true });
+        Object.defineProperty(chartCanvas, '_pdfH', { value: chartCapture.height, configurable: true });
+      } catch(e) {
+        // Fallback: use canvas directly
+        chartImgSrc = chartCanvas.toDataURL('image/png', 1.0);
+      }
+    }
+
+    // ── Helper: captura qualquer elemento do DOM em alta res ──────────────
+    async function captureEl(el) {
+      // Força o elemento numa div wrapper com largura exata de captura
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = [
+        'position:fixed', 'left:-9999px', 'top:0',
+        `width:${CAPTURE_W_PX}px`,
+        'background:#ffffff',
+        'box-sizing:border-box',
+        'overflow:visible'
+      ].join(';');
+      const clone = el.cloneNode(true);
+      // Remove display:none de eventuais filhos ocultos
+      clone.style.removeProperty('display');
+      wrapper.appendChild(clone);
+      document.body.appendChild(wrapper);
+      await new Promise(r => setTimeout(r, 80));
+      const cv = await html2canvas(wrapper, {
+        scale: 3,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: CAPTURE_W_PX,
+        windowWidth: CAPTURE_W_PX,
+        scrollX: 0, scrollY: 0,
+        logging: false
+      });
+      document.body.removeChild(wrapper);
+      return cv;
+    }
+
+    // pxCanvas → altura em mm dado que a largura será CONTENT_W_MM
+    function cvH(cv) {
+      return (cv.height / cv.width) * CONTENT_W_MM;
+    }
+
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PÁGINA 1: header + tags + cards + gráfico
+    // ════════════════════════════════════════════════════════════════════════
+    const drawHeader = (title, subtitle) => {
+      pdf.setFillColor(158, 12, 36);
+      pdf.roundedRect(MARGIN_MM, MARGIN_MM, CONTENT_W_MM, 16, 2, 2, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(13);
+      pdf.text(title, MARGIN_MM + 5, MARGIN_MM + 7);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+      pdf.text(subtitle, MARGIN_MM + 5, MARGIN_MM + 13);
+    };
+
+    drawHeader(
+      'Predição de Perda de Peso — Tirzepatida',
+      `SURMOUNT-1  ·  SURMOUNT-1 / SURMOUNT-2  ·  Gerado em ${dateStr}  ·  Uso exclusivo para profissionais de saúde`
+    );
+
+    let curY = MARGIN_MM + 19;
+
+    // — Tags —
+    const tagsEl = document.getElementById('patientTags');
+    if (tagsEl && tagsEl.children.length > 0) {
+      const cv = await captureEl(tagsEl);
+      const h  = cvH(cv);
+      pdf.addImage(cv.toDataURL('image/png'), 'PNG', MARGIN_MM, curY, CONTENT_W_MM, h);
+      curY += h + 3;
+    }
+
+    // — Summary cards —
+    const cardsEl = document.getElementById('summaryCards');
+    if (cardsEl) {
+      const cv = await captureEl(cardsEl);
+      const h  = cvH(cv);
+      pdf.addImage(cv.toDataURL('image/png'), 'PNG', MARGIN_MM, curY, CONTENT_W_MM, h);
+      curY += h + 4;
+    }
+
+    // — Gráfico — renderiza com proporção original do canvas, sem esticar ──
+    if (chartImgSrc && chartCanvas) {
+      const availH = A4_H_MM - MARGIN_MM - curY - 12;
+
+      // Proporção real da captura (inclui eixos e legenda)
+      const capW = chartCanvas._pdfW || chartCanvas.width;
+      const capH = chartCanvas._pdfH || chartCanvas.height;
+      const canvasAR = capW / capH;  // typically ~2.5-3 landscape
+
+      // Queremos que o gráfico ocupe no máximo 85% da largura disponível
+      // e no máximo availH de altura, mantendo a proporção original
+      const maxW = CONTENT_W_MM * 0.90;
+      const maxH = Math.min(availH, 80);  // no máximo 80mm de altura
+
+      // Calcular dimensões preservando aspect ratio
+      let chartW = maxW;
+      let chartH = chartW / canvasAR;
+      if (chartH > maxH) {
+        chartH = maxH;
+        chartW = chartH * canvasAR;
+      }
+
+      // Centralizar horizontalmente
+      const chartX = MARGIN_MM + (CONTENT_W_MM - chartW) / 2;
+      pdf.addImage(chartImgSrc, 'PNG', chartX, curY, chartW, chartH);
+      curY += chartH;
+    }
+
+    // — Rodapé —
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6); pdf.setTextColor(150);
+    pdf.text(
+      'Página 1 de 2  ·  SURMOUNT-1 / SURMOUNT-2  ·  Uso exclusivo para profissionais de saúde',
+      A4_W_MM / 2, A4_H_MM - 5, { align: 'center' }
+    );
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PÁGINA 2: resumo paciente + tabela completa + disclaimer
+    // ════════════════════════════════════════════════════════════════════════
+    pdf.addPage();
+
+    drawHeader(
+      'Predições Detalhadas — Trajetória de 72 Semanas',
+      `Gerado em ${dateStr}`
+    );
+
+    curY = MARGIN_MM + 19;
+
+    // — Caixa de status do paciente (se houver dados de acompanhamento) —
+    if (lastState && lastState.currentPoint) {
+      const cp = lastState.currentPoint;
+      const hasActual = cp.actualWeight !== undefined;
+      const s = lastState;
+
+      // Montar tabela de status direto via jsPDF (mais confiável que captura de DOM)
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(30,30,30);
+      pdf.text('Status do Paciente na Consulta Atual', MARGIN_MM, curY);
+      curY += 5;
+
+      const statusRows = [];
+      statusRows.push(['Semanas em tratamento', `${cp.weeksElapsed.toFixed(1)} sem (${cp.diffDays} dias)`]);
+      statusRows.push(['Peso esperado (mediana)', `${cp.wExpected.toFixed(1)} kg  |  IIQ: ${cp.wLower.toFixed(1)} – ${cp.wUpper.toFixed(1)} kg`]);
+      statusRows.push(['PPT esperado (mediana)', `${cp.twlExpected.toFixed(1)}%  |  IIQ: ${cp.q1Expected.toFixed(1)}% – ${cp.q3Expected.toFixed(1)}%`]);
+
+      if (hasActual) {
+        statusRows.push(['Peso atual (real)', `${cp.actualWeight.toFixed(1)} kg`]);
+        statusRows.push(['PPT atual (real)', `${cp.actualTWL.toFixed(1)}%`]);
+        const diff = cp.diffFromMedian;
+        const diffStr = diff >= 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
+        statusRows.push(['Diferença vs. mediana', `${diffStr}  (percentil estimado: ${cp.percentile}°)`]);
+        const falta = cp.diffFromTarget;
+        statusRows.push(['Falta para meta (sem. 72)', `${falta.toFixed(1)}%  (${(s.weight * falta / 100).toFixed(1)} kg)`]);
+      }
+
+      const COL1 = 90, COL2 = CONTENT_W_MM - COL1;
+      const ROW_H = 7;
+      pdf.setFillColor(248,249,252);
+      pdf.rect(MARGIN_MM, curY, CONTENT_W_MM, statusRows.length * ROW_H + 2, 'F');
+      pdf.setDrawColor(200,200,210);
+      pdf.rect(MARGIN_MM, curY, CONTENT_W_MM, statusRows.length * ROW_H + 2, 'S');
+
+      statusRows.forEach((row, i) => {
+        const y = curY + 5 + i * ROW_H;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); pdf.setTextColor(90,90,110);
+        pdf.text(row[0], MARGIN_MM + 4, y);
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(20,20,40);
+        pdf.text(row[1], MARGIN_MM + COL1, y);
+      });
+
+      curY += statusRows.length * ROW_H + 8;
+    }
+
+    // — Tabela completa de predições com kg E % —
+    // Gera a tabela programaticamente para garantir todos os dados
+    if (lastState && lastState.predictions) {
+      const preds = lastState.predictions;
+      const s = lastState;
+
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(30,30,30);
+      pdf.text('Trajetória Completa de Predição — 72 Semanas', MARGIN_MM, curY);
+      curY += 5;
+
+      // Cabeçalho da tabela
+      const COLS = [28, 30, 28, 28, 28, 30, 28, 30]; // larguras
+      const LABELS = ['Semana', 'Peso (kg)', 'IMC', 'PPT (%)', 'P25 (%)', 'IIQ kg (P25)', 'P75 (%)', 'IIQ kg (P75)'];
+      const COL_STARTS = [];
+      let cx = MARGIN_MM;
+      COLS.forEach(w => { COL_STARTS.push(cx); cx += w; });
+
+      // Header row
+      pdf.setFillColor(158, 12, 36);
+      pdf.rect(MARGIN_MM, curY, CONTENT_W_MM, 7, 'F');
+      pdf.setTextColor(255,255,255); pdf.setFont('helvetica','bold'); pdf.setFontSize(7);
+      LABELS.forEach((lbl, i) => {
+        pdf.text(lbl, COL_STARTS[i] + 2, curY + 4.5);
+      });
+      curY += 7;
+
+      // Data rows
+      const TABLE_WKS = [0, 4, 8, 12, 24, 36, 52, 72];
+      const rowPreds = preds.filter(p => TABLE_WKS.includes(p.week));
+      rowPreds.forEach((p, ri) => {
+        const rowBg = ri % 2 === 0 ? [255,255,255] : [248,249,252];
+        pdf.setFillColor(...rowBg);
+        pdf.rect(MARGIN_MM, curY, CONTENT_W_MM, 6.5, 'F');
+
+        // highlight actual-week row
+        const isActualWeek = lastState.currentPoint &&
+          Math.abs(lastState.currentPoint.weeksElapsed - p.week) < 2 &&
+          lastState.currentPoint.actualWeight !== undefined;
+        if (isActualWeek) {
+          pdf.setFillColor(255, 248, 230);
+          pdf.rect(MARGIN_MM, curY, CONTENT_W_MM, 6.5, 'F');
+        }
+
+        pdf.setFont('helvetica', p.week === 0 ? 'bold' : 'normal');
+        pdf.setFontSize(7.5); pdf.setTextColor(30,30,50);
+
+        const wkLabel = p.week === 0 ? 'Baseline' : `Sem. ${p.week}`;
+        const vals = [
+          wkLabel,
+          p.weight.toFixed(1),
+          p.bmi.toFixed(1),
+          p.twl.toFixed(1) + '%',
+          p.twlQ1.toFixed(1) + '%',
+          p.weightUpper.toFixed(1),   // Q1% → lower weight (more loss)
+          p.twlQ3.toFixed(1) + '%',
+          p.weightLower.toFixed(1),   // Q3% → higher loss → lower weight
+        ];
+        vals.forEach((v, i) => {
+          pdf.text(String(v), COL_STARTS[i] + 2, curY + 4.5);
+        });
+
+        // If this is near the patient's current week, add actual data
+        if (lastState.currentPoint && p.week === 0) {
+          // baseline already shown
+        }
+        curY += 6.5;
+      });
+
+      // If patient has current data and it's between table weeks, add a separate row
+      const cp = lastState.currentPoint;
+      if (cp && cp.actualWeight !== undefined) {
+        const wk = cp.weeksElapsed;
+        const isExact = TABLE_WKS.some(w => Math.abs(w - wk) < 1);
+        if (!isExact) {
+          pdf.setFillColor(255, 243, 205);
+          pdf.rect(MARGIN_MM, curY, CONTENT_W_MM, 6.5, 'F');
+          pdf.setFont('helvetica','bold'); pdf.setFontSize(7); pdf.setTextColor(120,60,0);
+          pdf.text(`★ Sem. ${wk.toFixed(1)} (consulta real)`, COL_STARTS[0]+2, curY+4.5);
+          pdf.setFont('helvetica','normal'); pdf.setTextColor(30,30,50);
+          const actVals = ['', cp.actualWeight.toFixed(1), '', cp.actualTWL.toFixed(1)+'%',
+                           cp.q1Expected.toFixed(1)+'%', cp.wUpper.toFixed(1),
+                           cp.q3Expected.toFixed(1)+'%', cp.wLower.toFixed(1)];
+          actVals.forEach((v, i) => { if (i>0 && v) pdf.text(v, COL_STARTS[i]+2, curY+4.5); });
+          curY += 6.5;
+        }
+      }
+
+      curY += 4;
+    }
+
+    // — Nota IIQ —
+    pdf.setFont('helvetica','italic'); pdf.setFontSize(6.5); pdf.setTextColor(120,120,130);
+    pdf.text('IIQ = Intervalo Interquartil (P25–P75). PPT = Perda de Peso Total. Peso IIQ inferior (P75%) = peso com maior perda; Peso IIQ superior (P25%) = peso com menor perda.', MARGIN_MM, curY);
+    curY += 5;
+
+    // — Disclaimer —
+    const disclaimer = document.getElementById('disclaimer');
+    if (disclaimer && disclaimer.style.display !== 'none') {
+      const cv = await captureEl(disclaimer);
+      const h  = cvH(cv);
+      if (curY + h < A4_H_MM - MARGIN_MM) {
+        pdf.addImage(cv.toDataURL('image/png'), 'PNG', MARGIN_MM, curY, CONTENT_W_MM, h);
+      }
+    }
+
+    // — Rodapé —
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6); pdf.setTextColor(150);
+    pdf.text(
+      'Página 2 de 2  ·  SURMOUNT-1 / SURMOUNT-2  ·  Uso exclusivo para profissionais de saúde',
+      A4_W_MM / 2, A4_H_MM - 5, { align: 'center' }
+    );
+
+    // ── Salva ──────────────────────────────────────────────────────────────
+    pdf.save(`predicao-tirzepatida-${dateStr.replace(/\//g,'-')}.pdf`);
+
+  } catch(e) {
+    console.error('Erro ao gerar PDF:', e);
+    alert('Erro ao gerar PDF. Por favor tente novamente.');
+  }
+
+  btn.textContent = origText;
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
