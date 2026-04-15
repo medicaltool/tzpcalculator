@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Calculadora de Predição — Tirzepatida | Eli Lilly Brasil</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" crossorigin="anonymous">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════
    LILLY BRAND SYSTEM
@@ -1970,31 +1970,60 @@ async function exportPDF() {
     /* Grafico — captura do canvas Chart.js */
     y += 4;
     const chartCanvas = document.getElementById('mainChart');
-    if (chartCanvas) {
-      const chartImg = chartCanvas.toDataURL('image/png', 1.0);
-      const chartAspect = chartCanvas.width / chartCanvas.height;
-      const chartW = CW;
-      const chartH = chartW / chartAspect;
-      // Se não cabe na página atual, adiciona nova página
-      if (y + chartH + 10 > PH - 18) {
-        pdf.addPage();
-        y = MARGIN;
+    if (chartCanvas && chartInstance) {
+      let chartImg = null;
+      // Método 1: toDataURL direto do canvas Chart.js (mais rápido)
+      try {
+        chartImg = chartCanvas.toDataURL('image/png', 1.0);
+        // Verifica se a imagem é válida (não é canvas vazio/tainted)
+        if (!chartImg || chartImg.length < 1000 || chartImg === 'data:,') chartImg = null;
+      } catch(canvasErr) {
+        console.warn('toDataURL falhou, tentando html2canvas...', canvasErr);
+        chartImg = null;
       }
-      secTitle('GRAFICO - TRAJETORIA DE PERDA DE PESO', y); y += 7;
-      // Borda sutil ao redor do gráfico
-      pdf.setDrawColor(220,220,220); pdf.setLineWidth(0.3);
-      pdf.rect(MARGIN, y, chartW, chartH);
-      pdf.addImage(chartImg, 'PNG', MARGIN, y, chartW, chartH);
-      y += chartH + 4;
-      // Legenda do gráfico
-      pdf.setFont('helvetica','italic'); pdf.setFontSize(6.5); pdf.setTextColor(140);
-      const modeLabel = chartMode === 'weight'
-        ? 'Peso (kg) ao longo de 72 semanas - Linha vermelha: mediana; Banda rosa: IIQ (P25-P75)'
-        : 'Perda de peso (%) ao longo de 72 semanas - Linha roxa: mediana; Banda rosa: IIQ (P25-P75)';
-      pdf.text(modeLabel, MARGIN, y);
-      if (s.currentPoint) {
-        y += 3.5;
-        pdf.text('Ponto amarelo: consulta atual do paciente', MARGIN, y);
+      // Método 2: fallback via html2canvas (resolve CORS/tainted canvas)
+      if (!chartImg && typeof html2canvas !== 'undefined') {
+        try {
+          const chartWrap = chartCanvas.closest('.chart-wrap') || chartCanvas.parentElement;
+          const h2cCanvas = await html2canvas(chartWrap, {
+            backgroundColor: '#ffffff',
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            logging: false
+          });
+          chartImg = h2cCanvas.toDataURL('image/png', 1.0);
+          if (!chartImg || chartImg.length < 1000) chartImg = null;
+        } catch(h2cErr) {
+          console.warn('html2canvas fallback também falhou:', h2cErr);
+        }
+      }
+      // Método 3: último fallback — Chart.js toBase64Image API
+      if (!chartImg) {
+        try {
+          chartImg = chartInstance.toBase64Image('image/png', 1.0);
+          if (!chartImg || chartImg.length < 1000) chartImg = null;
+        } catch(apiErr) {
+          console.warn('Chart.js toBase64Image falhou:', apiErr);
+        }
+      }
+
+      if (chartImg) {
+        const chartAspect = chartCanvas.width / chartCanvas.height;
+        const chartW = CW;
+        const chartH = chartW / chartAspect;
+        if (y + chartH + 10 > PH - 18) { pdf.addPage(); y = MARGIN; }
+        secTitle('GRAFICO - TRAJETORIA DE PERDA DE PESO', y); y += 7;
+        pdf.setDrawColor(220,220,220); pdf.setLineWidth(0.3);
+        pdf.rect(MARGIN, y, chartW, chartH);
+        pdf.addImage(chartImg, 'PNG', MARGIN, y, chartW, chartH);
+        y += chartH + 4;
+        pdf.setFont('helvetica','italic'); pdf.setFontSize(6.5); pdf.setTextColor(140);
+        const modeLabel = chartMode === 'weight'
+          ? 'Peso (kg) ao longo de 72 semanas - Linha vermelha: mediana; Banda rosa: IIQ (P25-P75)'
+          : 'Perda de peso (%) ao longo de 72 semanas - Linha roxa: mediana; Banda rosa: IIQ (P25-P75)';
+        pdf.text(modeLabel, MARGIN, y);
+        if (s.currentPoint) { y += 3.5; pdf.text('Ponto amarelo: consulta atual do paciente', MARGIN, y); }
       }
     }
 
